@@ -1,333 +1,183 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bulk AI Studio Cutout</title>
-  <style>
-    :root {
-      --primary: #2563eb;
-      --bg: #f8fafc;
-      --surface: #ffffff;
-      --border: #cbd5e1;
-      --text: #0f172a;
-      --muted: #64748b;
-    }
+<script type="module">
+  import { env, AutoModel, AutoProcessor, RawImage } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding: 20px; min-height: 100vh; }
-    .container { max-width: 1000px; margin: 0 auto; }
+  env.allowLocalModels = false;
+  // Use available CPU cores for faster calculation
+  env.backends.onnx.wasm.numThreads = Math.min(navigator.hardwareConcurrency || 2, 4);
 
-    header { text-align: center; margin-bottom: 20px; }
-    header h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
-    #status { font-size: 13px; font-weight: 600; color: #d97706; }
+  let model = null;
+  let processor = null;
+  let activeColor = 'transparent';
+  const queue = [];
+  let isProcessing = false;
+  const processedItems = [];
 
-    .upload-box {
-      background: var(--surface);
-      border: 2px dashed #94a3b8;
-      border-radius: 12px;
-      padding: 30px 16px;
-      text-align: center;
-      cursor: pointer;
-      margin-bottom: 20px;
-    }
-    .upload-box:hover { background: #eff6ff; border-color: var(--primary); }
-    .upload-box h3 { font-size: 16px; margin-bottom: 4px; }
-    .upload-box p { font-size: 12px; color: var(--muted); }
+  const statusEl = document.getElementById('status');
+  const uploadTrigger = document.getElementById('uploadTrigger');
+  const fileInput = document.getElementById('fileInput');
+  const gallery = document.getElementById('gallery');
+  const swatches = document.querySelectorAll('.swatch');
+  const downloadAllBtn = document.getElementById('downloadAllBtn');
 
-    .toolbar {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px 18px;
-      margin-bottom: 20px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-    }
+  uploadTrigger.addEventListener('click', () => fileInput.click());
 
-    .palette { display: flex; align-items: center; gap: 8px; }
-    .palette-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
-    .swatch {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      border: 2px solid #cbd5e1;
-      cursor: pointer;
-    }
-    .swatch.active { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.25); transform: scale(1.08); }
+  async function loadEngine() {
+    try {
+      const model_id = 'briaai/RMBG-1.4';
+      statusEl.textContent = 'Loading studio neural net...';
 
-    .btn {
-      background: #0f172a;
-      color: white;
-      font-weight: 600;
-      padding: 10px 16px;
-      border-radius: 6px;
-      font-size: 13px;
-      border: none;
-      cursor: pointer;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-      gap: 16px;
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .preview-box {
-      width: 100%;
-      height: 240px;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-image: repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 50%/16px 16px;
-    }
-    .preview-box canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
-
-    .loader-overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(255, 255, 255, 0.9);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--muted);
-      padding: 10px;
-      text-align: center;
-    }
-
-    .card-footer {
-      padding: 10px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-top: 1px solid #f1f5f9;
-    }
-    .file-name { font-size: 12px; color: var(--text); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .dl-btn { font-size: 12px; font-weight: 700; color: var(--primary); text-decoration: none; cursor: pointer; }
-  </style>
-</head>
-<body>
-
-  <div class="container">
-    <header>
-      <h1>Studio HD Background Remover</h1>
-      <p id="status">Loading Studio AI Engine...</p>
-    </header>
-
-    <div class="upload-box" id="uploadTrigger">
-      <h3>Drop photos here, or click to upload</h3>
-      <p>True studio isolation (no floating patches)</p>
-      <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
-    </div>
-
-    <div class="toolbar">
-      <div class="palette">
-        <span class="palette-label">Backdrop:</span>
-        <button class="swatch active" data-color="transparent" title="Transparent" style="background: repeating-conic-gradient(#cbd5e1 0% 25%, #fff 0% 50%) 50%/8px 8px;"></button>
-        <button class="swatch" data-color="#ffffff" title="Solid White" style="background: #ffffff;"></button>
-        <button class="swatch" data-color="#2563eb" title="Passport Blue" style="background: #2563eb;"></button>
-        <button class="swatch" data-color="#ef4444" title="Solid Red" style="background: #ef4444;"></button>
-        <button class="swatch" data-color="#10b981" title="Solid Green" style="background: #10b981;"></button>
-        <button class="swatch" data-color="#0f172a" title="Dark Slate" style="background: #0f172a;"></button>
-      </div>
-      <button class="btn" id="downloadAllBtn">Download All</button>
-    </div>
-
-    <div class="grid" id="gallery"></div>
-  </div>
-
-  <script type="module">
-    import { env, AutoModel, AutoProcessor, RawImage } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
-
-    // Force WASM execution: bypasses all WebGL/WebGPU Windows 7 & mobile GPU crashes
-    env.allowLocalModels = false;
-    env.backends.onnx.wasm.numThreads = 1;
-
-    let model = null;
-    let processor = null;
-    let activeColor = 'transparent';
-    const queue = [];
-    let isProcessing = false;
-    const processedItems = [];
-
-    const statusEl = document.getElementById('status');
-    const uploadTrigger = document.getElementById('uploadTrigger');
-    const fileInput = document.getElementById('fileInput');
-    const gallery = document.getElementById('gallery');
-    const swatches = document.querySelectorAll('.swatch');
-    const downloadAllBtn = document.getElementById('downloadAllBtn');
-
-    uploadTrigger.addEventListener('click', () => fileInput.click());
-
-    // Load RMBG-1.4 model
-    async function loadEngine() {
-      try {
-        const model_id = 'briaai/RMBG-1.4';
-        statusEl.textContent = 'Loading studio neural net (~40MB, cached after 1st load)...';
-
-        model = await AutoModel.from_pretrained(model_id, {
-          quantized: true // 8-bit quantized: fast and low memory usage
-        });
-        processor = await AutoProcessor.from_pretrained(model_id);
-
-        statusEl.textContent = 'AI Engine Ready. Upload your photos.';
-        statusEl.style.color = '#16a34a';
-      } catch (err) {
-        statusEl.textContent = 'Failed to load model: ' + err.message;
-        statusEl.style.color = '#dc2626';
-      }
-    }
-    loadEngine();
-
-    // Swatches
-    swatches.forEach(swatch => {
-      swatch.addEventListener('click', () => {
-        swatches.forEach(s => s.classList.remove('active'));
-        swatch.classList.add('active');
-        activeColor = swatch.dataset.color;
-
-        processedItems.forEach(item => {
-          if (item.cleanCanvas) renderCanvas(item);
-        });
+      model = await AutoModel.from_pretrained(model_id, {
+        quantized: true
       });
-    });
+      processor = await AutoProcessor.from_pretrained(model_id);
 
-    fileInput.addEventListener('change', (e) => {
-      const files = Array.from(e.target.files);
-      if (!files.length) return;
-
-      files.forEach(file => {
-        const cardUI = createCardUI(file.name);
-        const item = { file, name: file.name, cardUI, cleanCanvas: null };
-        processedItems.push(item);
-        queue.push(item);
-      });
-      processQueue();
-      fileInput.value = '';
-    });
-
-    function createCardUI(name) {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML = `
-        <div class="preview-box">
-          <div class="loader-overlay">Queued...</div>
-          <canvas style="display:none;"></canvas>
-        </div>
-        <div class="card-footer">
-          <span class="file-name" title="${name}">${name}</span>
-          <a class="dl-btn" style="display:none;">Save PNG</a>
-        </div>
-      `;
-      gallery.appendChild(card);
-      return {
-        loader: card.querySelector('.loader-overlay'),
-        canvas: card.querySelector('canvas'),
-        dl: card.querySelector('.dl-btn')
-      };
+      statusEl.textContent = 'AI Engine Ready (Turbo Mode). Upload your photos.';
+      statusEl.style.color = '#16a34a';
+    } catch (err) {
+      statusEl.textContent = 'Failed to load model: ' + err.message;
+      statusEl.style.color = '#dc2626';
     }
+  }
+  loadEngine();
 
-    async function processQueue() {
-      if (isProcessing || queue.length === 0 || !model) return;
-      isProcessing = true;
+  swatches.forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      swatches.forEach(s => s.classList.remove('active'));
+      swatch.classList.add('active');
+      activeColor = swatch.dataset.color;
 
-      const item = queue.shift();
-      item.cardUI.loader.textContent = 'Extracting portrait...';
-
-      try {
-        const imageURL = URL.createObjectURL(item.file);
-        const image = await RawImage.fromURL(imageURL);
-
-        // Preprocess input
-        const { pixel_values } = await processor(image);
-
-        // Run inference
-        const { output } = await model({ input: pixel_values });
-
-        // Generate full-resolution alpha mask
-        const mask = await RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(image.width, image.height);
-
-        // Composite image with mask
-        const cleanCanvas = document.createElement('canvas');
-        cleanCanvas.width = image.width;
-        cleanCanvas.height = image.height;
-        const ctx = cleanCanvas.getContext('2d');
-
-        const imgData = ctx.createImageData(image.width, image.height);
-        const imgPixels = image.data;
-        const maskPixels = mask.data;
-
-        for (let i = 0; i < maskPixels.length; ++i) {
-          const idx = i * 4;
-          imgData.data[idx] = imgPixels[i * 3];       // R
-          imgData.data[idx + 1] = imgPixels[i * 3 + 1]; // G
-          imgData.data[idx + 2] = imgPixels[i * 3 + 2]; // B
-          imgData.data[idx + 3] = maskPixels[i];     // Clean A
-        }
-        ctx.putImageData(imgData, 0, 0);
-
-        item.cleanCanvas = cleanCanvas;
-        item.cardUI.loader.style.display = 'none';
-        item.cardUI.canvas.style.display = 'block';
-        item.cardUI.dl.style.display = 'inline';
-
-        renderCanvas(item);
-        URL.revokeObjectURL(imageURL);
-      } catch (err) {
-        console.error(err);
-        item.cardUI.loader.textContent = 'Error processing';
-      }
-
-      isProcessing = false;
-      processQueue();
-    }
-
-    function renderCanvas(item) {
-      const { cleanCanvas, cardUI } = item;
-      const canvas = cardUI.canvas;
-      const ctx = canvas.getContext('2d');
-      const w = cleanCanvas.width;
-      const h = cleanCanvas.height;
-
-      canvas.width = w;
-      canvas.height = h;
-
-      ctx.clearRect(0, 0, w, h);
-
-      if (activeColor !== 'transparent') {
-        ctx.fillStyle = activeColor;
-        ctx.fillRect(0, 0, w, h);
-      }
-
-      ctx.drawImage(cleanCanvas, 0, 0);
-
-      const dataUrl = canvas.toDataURL('image/png');
-      cardUI.dl.href = dataUrl;
-      cardUI.dl.download = `cutout_${item.name.replace(/\.[^/.]+$/, '')}.png`;
-    }
-
-    downloadAllBtn.addEventListener('click', () => {
       processedItems.forEach(item => {
-        if (item.cardUI && item.cardUI.dl && item.cardUI.dl.href) {
-          item.cardUI.dl.click();
-        }
+        if (item.cleanCanvas) renderCanvas(item);
       });
     });
-  </script>
-</body>
-</html>
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    files.forEach(file => {
+      const cardUI = createCardUI(file.name);
+      const item = { file, name: file.name, cardUI, cleanCanvas: null };
+      processedItems.push(item);
+      queue.push(item);
+    });
+    processQueue();
+    fileInput.value = '';
+  });
+
+  function createCardUI(name) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="preview-box">
+        <div class="loader-overlay">Queued...</div>
+        <canvas style="display:none;"></canvas>
+      </div>
+      <div class="card-footer">
+        <span class="file-name" title="${name}">${name}</span>
+        <a class="dl-btn" style="display:none;">Save PNG</a>
+      </div>
+    `;
+    gallery.appendChild(card);
+    return {
+      loader: card.querySelector('.loader-overlay'),
+      canvas: card.querySelector('canvas'),
+      dl: card.querySelector('.dl-btn')
+    };
+  }
+
+  async function processQueue() {
+    if (isProcessing || queue.length === 0 || !model) return;
+    isProcessing = true;
+
+    const item = queue.shift();
+    item.cardUI.loader.textContent = 'Extracting portrait...';
+
+    try {
+      const imageURL = URL.createObjectURL(item.file);
+      const image = await RawImage.fromURL(imageURL);
+
+      // Speed boost: Cap long edge to 1024px for inference pass
+      const maxDim = 1024;
+      let workingImage = image;
+      if (image.width > maxDim || image.height > maxDim) {
+        const scale = Math.min(maxDim / image.width, maxDim / image.height);
+        workingImage = await image.resize(
+          Math.round(image.width * scale),
+          Math.round(image.height * scale)
+        );
+      }
+
+      const { pixel_values } = await processor(workingImage);
+      const { output } = await model({ input: pixel_values });
+
+      // Resize mask to match original image dimensions for sharp output
+      const mask = await RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(image.width, image.height);
+
+      const cleanCanvas = document.createElement('canvas');
+      cleanCanvas.width = image.width;
+      cleanCanvas.height = image.height;
+      const ctx = cleanCanvas.getContext('2d');
+
+      const imgData = ctx.createImageData(image.width, image.height);
+      const imgPixels = image.data;
+      const maskPixels = mask.data;
+
+      for (let i = 0; i < maskPixels.length; ++i) {
+        const idx = i * 4;
+        imgData.data[idx] = imgPixels[i * 3];
+        imgData.data[idx + 1] = imgPixels[i * 3 + 1];
+        imgData.data[idx + 2] = imgPixels[i * 3 + 2];
+        imgData.data[idx + 3] = maskPixels[i];
+      }
+      ctx.putImageData(imgData, 0, 0);
+
+      item.cleanCanvas = cleanCanvas;
+      item.cardUI.loader.style.display = 'none';
+      item.cardUI.canvas.style.display = 'block';
+      item.cardUI.dl.style.display = 'inline';
+
+      renderCanvas(item);
+      URL.revokeObjectURL(imageURL);
+    } catch (err) {
+      console.error(err);
+      item.cardUI.loader.textContent = 'Error processing';
+    }
+
+    isProcessing = false;
+    processQueue();
+  }
+
+  function renderCanvas(item) {
+    const { cleanCanvas, cardUI } = item;
+    const canvas = cardUI.canvas;
+    const ctx = canvas.getContext('2d');
+    const w = cleanCanvas.width;
+    const h = cleanCanvas.height;
+
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.clearRect(0, 0, w, h);
+
+    if (activeColor !== 'transparent') {
+      ctx.fillStyle = activeColor;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    ctx.drawImage(cleanCanvas, 0, 0);
+
+    const dataUrl = canvas.toDataURL('image/png');
+    cardUI.dl.href = dataUrl;
+    cardUI.dl.download = `cutout_${item.name.replace(/\.[^/.]+$/, '')}.png`;
+  }
+
+  downloadAllBtn.addEventListener('click', () => {
+    processedItems.forEach(item => {
+      if (item.cardUI && item.cardUI.dl && item.cardUI.dl.href) {
+        item.cardUI.dl.click();
+      }
+    });
+  });
+</script>
