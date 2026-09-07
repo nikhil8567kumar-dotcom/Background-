@@ -3,11 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bulk AI Background Replacer</title>
-  
-  <!-- MediaPipe AI Engine -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/selfie_segmentation.js" crossorigin="anonymous"></script>
-
+  <title>Bulk AI Studio Cutout</title>
   <style>
     :root {
       --primary: #2563eb;
@@ -15,10 +11,10 @@
       --surface: #ffffff;
       --border: #cbd5e1;
       --text: #0f172a;
-      --text-muted: #64748b;
+      --muted: #64748b;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background: var(--bg); color: var(--text); padding: 20px; min-height: 100vh; }
     .container { max-width: 1000px; margin: 0 auto; }
 
@@ -34,11 +30,10 @@
       text-align: center;
       cursor: pointer;
       margin-bottom: 20px;
-      transition: background 0.2s;
     }
     .upload-box:hover { background: #eff6ff; border-color: var(--primary); }
     .upload-box h3 { font-size: 16px; margin-bottom: 4px; }
-    .upload-box p { font-size: 13px; color: var(--text-muted); }
+    .upload-box p { font-size: 12px; color: var(--muted); }
 
     .toolbar {
       background: var(--surface);
@@ -53,19 +48,15 @@
       gap: 14px;
     }
 
-    .palette-container { display: flex; align-items: center; gap: 10px; }
-    .palette-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
-    .swatches { display: flex; gap: 8px; }
+    .palette { display: flex; align-items: center; gap: 8px; }
+    .palette-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
     .swatch {
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       border: 2px solid #cbd5e1;
       cursor: pointer;
-      outline: none;
-      transition: transform 0.15s;
     }
-    .swatch:hover { transform: scale(1.1); }
     .swatch.active { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.25); transform: scale(1.08); }
 
     .btn {
@@ -81,7 +72,7 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
       gap: 16px;
     }
 
@@ -108,13 +99,15 @@
     .loader-overlay {
       position: absolute;
       inset: 0;
-      background: rgba(255, 255, 255, 0.85);
+      background: rgba(255, 255, 255, 0.9);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 13px;
       font-weight: 600;
-      color: var(--text-muted);
+      color: var(--muted);
+      padding: 10px;
+      text-align: center;
     }
 
     .card-footer {
@@ -132,28 +125,25 @@
 
   <div class="container">
     <header>
-      <h1>AI Bulk Background Replacer</h1>
-      <p id="status">Loading AI Engine...</p>
+      <h1>Studio HD Background Remover</h1>
+      <p id="status">Loading Studio AI Engine...</p>
     </header>
 
     <div class="upload-box" id="uploadTrigger">
-      <h3>Drop your photos here, or click to browse</h3>
-      <p>Clean studio edge processing active</p>
+      <h3>Drop photos here, or click to upload</h3>
+      <p>True studio isolation (no floating patches)</p>
       <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
     </div>
 
     <div class="toolbar">
-      <div class="palette-container">
+      <div class="palette">
         <span class="palette-label">Backdrop:</span>
-        <div class="swatches">
-          <button class="swatch active" data-color="transparent" title="Transparent" style="background: repeating-conic-gradient(#cbd5e1 0% 25%, #fff 0% 50%) 50%/8px 8px;"></button>
-          <button class="swatch" data-color="#ffffff" title="Solid White" style="background: #ffffff;"></button>
-          <button class="swatch" data-color="#2563eb" title="Passport Blue" style="background: #2563eb;"></button>
-          <button class="swatch" data-color="#ef4444" title="Solid Red" style="background: #ef4444;"></button>
-          <button class="swatch" data-color="#10b981" title="Solid Green" style="background: #10b981;"></button>
-          <button class="swatch" data-color="#0f172a" title="Dark Slate" style="background: #0f172a;"></button>
-          <button class="swatch" data-color="gradient" title="Studio Gradient" style="background: linear-gradient(180deg, #93c5fd 0%, #1e40af 100%);"></button>
-        </div>
+        <button class="swatch active" data-color="transparent" title="Transparent" style="background: repeating-conic-gradient(#cbd5e1 0% 25%, #fff 0% 50%) 50%/8px 8px;"></button>
+        <button class="swatch" data-color="#ffffff" title="Solid White" style="background: #ffffff;"></button>
+        <button class="swatch" data-color="#2563eb" title="Passport Blue" style="background: #2563eb;"></button>
+        <button class="swatch" data-color="#ef4444" title="Solid Red" style="background: #ef4444;"></button>
+        <button class="swatch" data-color="#10b981" title="Solid Green" style="background: #10b981;"></button>
+        <button class="swatch" data-color="#0f172a" title="Dark Slate" style="background: #0f172a;"></button>
       </div>
       <button class="btn" id="downloadAllBtn">Download All</button>
     </div>
@@ -161,10 +151,17 @@
     <div class="grid" id="gallery"></div>
   </div>
 
-  <script>
+  <script type="module">
+    import { env, AutoModel, AutoProcessor, RawImage } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+
+    // Force WASM execution: bypasses all WebGL/WebGPU Windows 7 & mobile GPU crashes
+    env.allowLocalModels = false;
+    env.backends.onnx.wasm.numThreads = 1;
+
+    let model = null;
+    let processor = null;
     let activeColor = 'transparent';
-    let selfieSegmentation = null;
-    let queue = [];
+    const queue = [];
     let isProcessing = false;
     const processedItems = [];
 
@@ -177,27 +174,27 @@
 
     uploadTrigger.addEventListener('click', () => fileInput.click());
 
-    function initAI() {
+    // Load RMBG-1.4 model
+    async function loadEngine() {
       try {
-        selfieSegmentation = new SelfieSegmentation({
-          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/${file}`
-        });
+        const model_id = 'briaai/RMBG-1.4';
+        statusEl.textContent = 'Loading studio neural net (~40MB, cached after 1st load)...';
 
-        selfieSegmentation.setOptions({
-          modelSelection: 1 // High precision landscape model
+        model = await AutoModel.from_pretrained(model_id, {
+          quantized: true // 8-bit quantized: fast and low memory usage
         });
+        processor = await AutoProcessor.from_pretrained(model_id);
 
-        selfieSegmentation.onResults(onResults);
-        
-        statusEl.textContent = 'AI Ready. Choose or drag photos to begin.';
+        statusEl.textContent = 'AI Engine Ready. Upload your photos.';
         statusEl.style.color = '#16a34a';
       } catch (err) {
-        statusEl.textContent = 'Failed to load AI engine: ' + err.message;
+        statusEl.textContent = 'Failed to load model: ' + err.message;
         statusEl.style.color = '#dc2626';
       }
     }
-    window.addEventListener('load', initAI);
+    loadEngine();
 
+    // Swatches
     swatches.forEach(swatch => {
       swatch.addEventListener('click', () => {
         swatches.forEach(s => s.classList.remove('active'));
@@ -215,20 +212,12 @@
       if (!files.length) return;
 
       files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const img = new Image();
-          img.onload = () => {
-            const cardUI = createCardUI(file.name);
-            const item = { name: file.name, img, cardUI, cleanCanvas: null };
-            processedItems.push(item);
-            queue.push(item);
-            processQueue();
-          };
-          img.src = ev.target.result;
-        };
-        reader.readAsDataURL(file);
+        const cardUI = createCardUI(file.name);
+        const item = { file, name: file.name, cardUI, cleanCanvas: null };
+        processedItems.push(item);
+        queue.push(item);
       });
+      processQueue();
       fileInput.value = '';
     });
 
@@ -253,106 +242,58 @@
       };
     }
 
-    let currentProcessingItem = null;
-
     async function processQueue() {
-      if (isProcessing || queue.length === 0) return;
+      if (isProcessing || queue.length === 0 || !model) return;
       isProcessing = true;
 
-      currentProcessingItem = queue.shift();
-      currentProcessingItem.cardUI.loader.textContent = 'Removing edges...';
+      const item = queue.shift();
+      item.cardUI.loader.textContent = 'Extracting portrait...';
 
       try {
-        await selfieSegmentation.send({ image: currentProcessingItem.img });
-      } catch (e) {
-        currentProcessingItem.cardUI.loader.textContent = 'Error processing';
-        isProcessing = false;
-        processQueue();
-      }
-    }
+        const imageURL = URL.createObjectURL(item.file);
+        const image = await RawImage.fromURL(imageURL);
 
-    // Edge-Cleaning Pipeline: Removes floating borders and dark fringes
-    function onResults(results) {
-      if (!currentProcessingItem) return;
+        // Preprocess input
+        const { pixel_values } = await processor(image);
 
-      const w = results.image.width;
-      const h = results.image.height;
+        // Run inference
+        const { output } = await model({ input: pixel_values });
 
-      // 1. Render raw mask
-      const rawMaskCanvas = document.createElement('canvas');
-      rawMaskCanvas.width = w;
-      rawMaskCanvas.height = h;
-      const rawCtx = rawMaskCanvas.getContext('2d');
-      rawCtx.drawImage(results.segmentationMask, 0, 0, w, h);
+        // Generate full-resolution alpha mask
+        const mask = await RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(image.width, image.height);
 
-      const imgData = rawCtx.getImageData(0, 0, w, h);
-      const data = imgData.data;
+        // Composite image with mask
+        const cleanCanvas = document.createElement('canvas');
+        cleanCanvas.width = image.width;
+        cleanCanvas.height = image.height;
+        const ctx = cleanCanvas.getContext('2d');
 
-      // 2. Strict Thresholding (Eliminates low-confidence background debris)
-      const binaryMask = new Uint8Array(w * h);
-      for (let i = 0; i < data.length; i += 4) {
-        // Values below 0.65 are forced to 0 (erases faint dark artifacts)
-        binaryMask[i / 4] = (data[i] / 255 > 0.65) ? 255 : 0;
-      }
+        const imgData = ctx.createImageData(image.width, image.height);
+        const imgPixels = image.data;
+        const maskPixels = mask.data;
 
-      // 3. Morphological Erosion: Shrinks mask boundary inward by 1px to peel off edge halos
-      const erodedMask = new Uint8Array(w * h);
-      for (let y = 1; y < h - 1; y++) {
-        for (let x = 1; x < w - 1; x++) {
-          const idx = y * w + x;
-          if (binaryMask[idx] === 255) {
-            // Check 4-neighbor connectivity
-            if (
-              binaryMask[idx - 1] === 255 &&
-              binaryMask[idx + 1] === 255 &&
-              binaryMask[idx - w] === 255 &&
-              binaryMask[idx + w] === 255
-            ) {
-              erodedMask[idx] = 255;
-            } else {
-              erodedMask[idx] = 0; // Cut boundary pixel
-            }
-          }
+        for (let i = 0; i < maskPixels.length; ++i) {
+          const idx = i * 4;
+          imgData.data[idx] = imgPixels[i * 3];       // R
+          imgData.data[idx + 1] = imgPixels[i * 3 + 1]; // G
+          imgData.data[idx + 2] = imgPixels[i * 3 + 2]; // B
+          imgData.data[idx + 3] = maskPixels[i];     // Clean A
         }
+        ctx.putImageData(imgData, 0, 0);
+
+        item.cleanCanvas = cleanCanvas;
+        item.cardUI.loader.style.display = 'none';
+        item.cardUI.canvas.style.display = 'block';
+        item.cardUI.dl.style.display = 'inline';
+
+        renderCanvas(item);
+        URL.revokeObjectURL(imageURL);
+      } catch (err) {
+        console.error(err);
+        item.cardUI.loader.textContent = 'Error processing';
       }
-
-      // Write cleaned mask back to canvas
-      for (let i = 0; i < erodedMask.length; i++) {
-        const val = erodedMask[i];
-        data[i * 4] = 255;
-        data[i * 4 + 1] = 255;
-        data[i * 4 + 2] = 255;
-        data[i * 4 + 3] = val;
-      }
-      rawCtx.putImageData(imgData, 0, 0);
-
-      // 4. Smooth Feathering: Apply a subtle 1px Gaussian blur to prevent jaggedness
-      const smoothMaskCanvas = document.createElement('canvas');
-      smoothMaskCanvas.width = w;
-      smoothMaskCanvas.height = h;
-      const sCtx = smoothMaskCanvas.getContext('2d');
-      sCtx.filter = 'blur(1.5px)';
-      sCtx.drawImage(rawMaskCanvas, 0, 0);
-
-      // 5. Composite photo with the final smoothed mask
-      const cleanCanvas = document.createElement('canvas');
-      cleanCanvas.width = w;
-      cleanCanvas.height = h;
-      const cCtx = cleanCanvas.getContext('2d');
-
-      cCtx.drawImage(smoothMaskCanvas, 0, 0);
-      cCtx.globalCompositeOperation = 'source-in';
-      cCtx.drawImage(results.image, 0, 0);
-
-      currentProcessingItem.cleanCanvas = cleanCanvas;
-      currentProcessingItem.cardUI.loader.style.display = 'none';
-      currentProcessingItem.cardUI.canvas.style.display = 'block';
-      currentProcessingItem.cardUI.dl.style.display = 'inline';
-
-      renderCanvas(currentProcessingItem);
 
       isProcessing = false;
-      currentProcessingItem = null;
       processQueue();
     }
 
@@ -368,19 +309,11 @@
 
       ctx.clearRect(0, 0, w, h);
 
-      // Draw active backdrop
-      if (activeColor === 'gradient') {
-        const grad = ctx.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, '#93c5fd');
-        grad.addColorStop(1, '#1e40af');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
-      } else if (activeColor !== 'transparent') {
+      if (activeColor !== 'transparent') {
         ctx.fillStyle = activeColor;
         ctx.fillRect(0, 0, w, h);
       }
 
-      // Draw cleanly cut out subject
       ctx.drawImage(cleanCanvas, 0, 0);
 
       const dataUrl = canvas.toDataURL('image/png');
