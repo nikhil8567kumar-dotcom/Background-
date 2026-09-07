@@ -2,444 +2,489 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Bulk AI People Background Studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studio Cutout Pro - Bulk Background Remover</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- TensorFlow.js & BodyPix Model -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.0/dist/body-pix.min.js"></script>
+  <!-- Production In-Browser AI Engine -->
+  <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.7/dist/bundle.js"></script>
 
   <style>
     :root {
       --primary: #2563eb;
+      --primary-hover: #1d4ed8;
       --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --text: #1e293b;
+      --surface: #ffffff;
       --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
     }
 
     body {
-      background-color: var(--bg);
+      background: var(--bg);
       color: var(--text);
-      padding: 24px;
-    }
-
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    header {
-      text-align: center;
-      margin-bottom: 24px;
-    }
-
-    header h1 {
-      font-size: 26px;
-      color: #0f172a;
-      margin-bottom: 6px;
-    }
-
-    #status {
-      font-size: 14px;
-      font-weight: bold;
-      color: #d97706;
-      margin-top: 4px;
-    }
-
-    .controls {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 18px 24px;
-      margin-bottom: 24px;
+      min-height: 100vh;
       display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      flex-direction: column;
     }
 
-    .control-group {
+    /* Top Navbar */
+    .navbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
       display: flex;
       align-items: center;
       gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
     }
 
-    .control-group label {
+    .brand span {
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .container {
+      max-width: 1200px;
+      width: 100%;
+      margin: 30px auto;
+      padding: 0 20px;
+      flex: 1;
+    }
+
+    /* Drag & Drop Upload Zone */
+    .upload-zone {
+      background: var(--surface);
+      border: 2px dashed #cbd5e1;
+      border-radius: 16px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 28px;
+    }
+
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+
+    .upload-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 12px;
+      fill: var(--primary);
+    }
+
+    .upload-title {
+      font-size: 18px;
       font-weight: 600;
-      font-size: 14px;
+      margin-bottom: 4px;
     }
 
-    .color-presets {
+    .upload-sub {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* Global Studio Action Bar */
+    .studio-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .palette-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .palette-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .swatches {
       display: flex;
       gap: 8px;
+      align-items: center;
     }
 
-    .color-btn {
-      width: 30px;
-      height: 30px;
+    .swatch {
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       border: 2px solid #cbd5e1;
       cursor: pointer;
       outline: none;
-      transition: transform 0.1s, border-color 0.1s;
+      transition: all 0.15s ease;
     }
 
-    .color-btn:hover {
+    .swatch:hover {
       transform: scale(1.1);
     }
 
-    .color-btn.active {
+    .swatch.active {
       border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+      transform: scale(1.05);
     }
 
     .btn {
-      background-color: var(--primary);
-      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
       padding: 10px 18px;
       border-radius: 8px;
-      font-size: 14px;
       font-weight: 600;
+      font-size: 14px;
       border: none;
       cursor: pointer;
+      transition: background 0.15s ease;
     }
 
-    .btn:disabled {
-      background-color: #94a3b8;
-      cursor: not-allowed;
+    .btn-primary {
+      background: var(--primary);
+      color: white;
     }
 
-    .file-input-wrapper {
-      position: relative;
-      overflow: hidden;
-      display: inline-block;
-    }
-
-    .file-input-wrapper input[type=file] {
-      font-size: 100px;
-      position: absolute;
-      left: 0;
-      top: 0;
-      opacity: 0;
-      cursor: pointer;
+    .btn-primary:hover {
+      background: var(--primary-hover);
     }
 
     .btn-dark {
-      background-color: #0f172a;
+      background: #0f172a;
+      color: white;
     }
 
-    /* Gallery Grid */
-    .gallery {
+    .btn-dark:hover {
+      background: #1e293b;
+    }
+
+    /* Grid Gallery */
+    .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
     }
 
     .card {
-      background: var(--card-bg);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
+      border-radius: 12px;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
-    .preview-box {
+    .preview-container {
       width: 100%;
-      height: 200px;
+      height: 250px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 6px;
-      background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
-                        linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
-                        linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
-                        linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
-      background-size: 16px 16px;
-      background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
-      overflow: hidden;
       position: relative;
+      background-image: repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 50%/16px 16px;
+      overflow: hidden;
     }
 
-    .preview-box canvas {
+    .preview-container canvas {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
     }
 
-    .card-footer {
-      width: 100%;
-      margin-top: 10px;
+    .loader-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(4px);
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       align-items: center;
-    }
-
-    .card-footer span {
-      font-size: 12px;
-      color: #64748b;
-      max-width: 130px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .card-footer a {
-      font-size: 12px;
-      color: var(--primary);
-      text-decoration: none;
-      font-weight: 600;
-      cursor: pointer;
+      justify-content: center;
+      gap: 10px;
+      z-index: 2;
     }
 
     .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loader-text {
       font-size: 13px;
-      color: #475569;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .card-body {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+    }
+
+    .file-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .download-action {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .download-action:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
 
+  <nav class="navbar">
+    <div class="brand">
+      StudioCutout <span>AI PRO</span>
+    </div>
+    <div style="font-size: 13px; color: var(--text-muted);">100% Free • Runs in Browser</div>
+  </nav>
+
   <div class="container">
-    <header>
-      <h1>AI Bulk Background Replacer</h1>
-      <p id="status">Loading neural network model, please wait...</p>
-    </header>
+    <!-- Dropzone -->
+    <div class="upload-zone" id="dropZone">
+      <svg class="upload-icon" viewBox="0 0 24 24">
+        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+      </svg>
+      <div class="upload-title">Drop your photos here, or browse</div>
+      <div class="upload-sub">Supports multi-file bulk uploads (PNG, JPG, WebP)</div>
+      <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
+    </div>
 
-    <div class="controls">
-      <!-- File Selector -->
-      <div class="file-input-wrapper">
-        <button class="btn" id="uploadBtn" disabled>Choose Bulk Photos</button>
-        <input type="file" id="imageInput" accept="image/*" multiple disabled>
-      </div>
-
-      <!-- Color Palette -->
-      <div class="control-group">
-        <label>New Background:</label>
-        <div class="color-presets">
-          <button class="color-btn active" data-color="transparent" title="Transparent" style="background: repeating-conic-gradient(#cbd5e1 0% 25%, #fff 0% 50%) 50%/8px 8px;"></button>
-          <button class="color-btn" data-color="#ffffff" title="Solid White" style="background: #ffffff;"></button>
-          <button class="color-btn" data-color="#3b82f6" title="Vibrant Blue" style="background: #3b82f6;"></button>
-          <button class="color-btn" data-color="#ef4444" title="Bright Red" style="background: #ef4444;"></button>
-          <button class="color-btn" data-color="#10b981" title="Fresh Green" style="background: #10b981;"></button>
-          <button class="color-btn" data-color="#0f172a" title="Dark Slate" style="background: #0f172a;"></button>
-          <button class="color-btn" data-color="gradient" title="Sunset Gradient" style="background: linear-gradient(135deg, #f093fb, #f5576c);"></button>
+    <!-- Controls -->
+    <div class="studio-bar">
+      <div class="palette-wrapper">
+        <span class="palette-label">Backdrop:</span>
+        <div class="swatches">
+          <button class="swatch active" data-color="transparent" title="Transparent" style="background: repeating-conic-gradient(#cbd5e1 0% 25%, #fff 0% 50%) 50%/8px 8px;"></button>
+          <button class="swatch" data-color="#ffffff" title="Solid White" style="background: #ffffff;"></button>
+          <button class="swatch" data-color="#2563eb" title="Passport Blue" style="background: #2563eb;"></button>
+          <button class="swatch" data-color="#ef4444" title="Solid Red" style="background: #ef4444;"></button>
+          <button class="swatch" data-color="#10b981" title="Solid Green" style="background: #10b981;"></button>
+          <button class="swatch" data-color="#0f172a" title="Dark Slate" style="background: #0f172a;"></button>
+          <button class="swatch" data-color="gradient" title="Smooth Studio Grey" style="background: linear-gradient(180deg, #e2e8f0 0%, #94a3b8 100%);"></button>
         </div>
       </div>
 
-      <button class="btn btn-dark" id="downloadAllBtn">Download All</button>
+      <button class="btn btn-dark" id="downloadAllBtn">Download All Cutouts</button>
     </div>
 
-    <!-- Gallery Output -->
-    <div class="gallery" id="gallery"></div>
+    <!-- Image Grid -->
+    <div class="grid" id="gallery"></div>
   </div>
 
   <script>
-    let net = null;
-    let currentColor = 'transparent';
-    let queue = [];
+    let activeColor = 'transparent';
+    const queue = [];
     let isProcessing = false;
     const processedItems = [];
 
-    const statusEl = document.getElementById('status');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const imageInput = document.getElementById('imageInput');
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
     const gallery = document.getElementById('gallery');
-    const colorButtons = document.querySelectorAll('.color-btn');
+    const swatches = document.querySelectorAll('.swatch');
     const downloadAllBtn = document.getElementById('downloadAllBtn');
 
-    // 1. Initialize BodyPix Model
-    async function loadModel() {
-      try {
-        net = await bodyPix.load({
-          architecture: 'MobileNetV1',
-          outputStride: 16,
-          multiplier: 0.75,
-          quantBytes: 2
-        });
-        statusEl.textContent = 'AI Ready. Select multiple photos to begin.';
-        statusEl.style.color = '#16a34a';
-        uploadBtn.disabled = false;
-        imageInput.disabled = false;
-      } catch (err) {
-        statusEl.textContent = 'Failed to load model. Please ensure you are connected to the internet.';
-        statusEl.style.color = '#dc2626';
-      }
-    }
-    loadModel();
+    // Trigger file chooser
+    dropZone.addEventListener('click', () => fileInput.click());
 
-    // 2. Handle Color Selection
-    colorButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        colorButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentColor = btn.dataset.color;
-        
-        // Re-paint all processed masks with the new background
+    // Drag-and-drop
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+      });
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      handleFiles(Array.from(e.dataTransfer.files));
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(Array.from(e.target.files));
+      fileInput.value = ''; // Reset input
+    });
+
+    // Swatches
+    swatches.forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        swatches.forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+        activeColor = swatch.dataset.color;
+
         processedItems.forEach(item => {
-          if (item.personMask) {
-            composeBackground(item);
-          }
+          if (item.cleanBitmap) renderCanvas(item);
         });
       });
     });
 
-    // 3. Handle File Uploads
-    imageInput.addEventListener('change', (e) => {
-      const files = Array.from(e.target.files);
-      if (!files.length) return;
-
-      files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const img = new Image();
-          img.onload = () => {
-            const cardUI = createCardUI(file.name);
-            const item = {
-              name: file.name,
-              img: img,
-              cardUI: cardUI,
-              personMask: null
-            };
-            processedItems.push(item);
-            queue.push(item);
-            processQueue();
-          };
-          img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
+    function handleFiles(files) {
+      files.filter(f => f.type.startsWith('image/')).forEach(file => {
+        const cardUI = createCardUI(file.name);
+        const item = { file, name: file.name, cardUI, cleanBitmap: null };
+        processedItems.push(item);
+        queue.push(item);
       });
-    });
+      processQueue();
+    }
 
-    function createCardUI(name) {
+    function createCardUI(fileName) {
       const card = document.createElement('div');
       card.className = 'card';
-
-      const previewBox = document.createElement('div');
-      previewBox.className = 'preview-box';
-      
-      const spinner = document.createElement('span');
-      spinner.className = 'spinner';
-      spinner.textContent = 'Waiting...';
-      previewBox.appendChild(spinner);
-
-      const canvas = document.createElement('canvas');
-      canvas.style.display = 'none';
-      previewBox.appendChild(canvas);
-
-      const footer = document.createElement('div');
-      footer.className = 'card-footer';
-
-      const title = document.createElement('span');
-      title.textContent = name;
-
-      const dl = document.createElement('a');
-      dl.textContent = 'Download';
-      dl.style.display = 'none';
-
-      footer.appendChild(title);
-      footer.appendChild(dl);
-
-      card.appendChild(previewBox);
-      card.appendChild(footer);
+      card.innerHTML = `
+        <div class="preview-container">
+          <div class="loader-overlay">
+            <div class="spinner"></div>
+            <div class="loader-text">Analyzing image...</div>
+          </div>
+          <canvas style="display:none;"></canvas>
+        </div>
+        <div class="card-body">
+          <span class="file-name" title="${fileName}">${fileName}</span>
+          <a class="download-action" style="display:none;">Save PNG</a>
+        </div>
+      `;
       gallery.appendChild(card);
-
-      return { canvas, dl, spinner };
+      return {
+        overlay: card.querySelector('.loader-overlay'),
+        loaderText: card.querySelector('.loader-text'),
+        canvas: card.querySelector('canvas'),
+        dl: card.querySelector('.download-action')
+      };
     }
 
-    // 4. Sequential Queue to prevent browser freezing
     async function processQueue() {
       if (isProcessing || queue.length === 0) return;
       isProcessing = true;
 
       const item = queue.shift();
-      item.cardUI.spinner.textContent = 'Analyzing Person...';
+      item.cardUI.loaderText.textContent = 'Removing background...';
 
       try {
-        // Run AI Segmentation
-        const segmentation = await net.segmentPerson(item.img, {
-          flipHorizontal: false,
-          internalResolution: 'medium',
-          segmentationThreshold: 0.7
+        // High-Precision AI processing via Imagely WebAssembly
+        const blob = await imglyRemoveBackground(item.file, {
+          progress: (key, current, total) => {
+            if (key === 'compute:inference') {
+              const pct = Math.round((current / total) * 100);
+              item.cardUI.loaderText.textContent = `Processing ${pct}%...`;
+            }
+          }
         });
 
-        item.personMask = segmentation;
-        item.cardUI.spinner.style.display = 'none';
+        // Convert blob to renderable ImageBitmap
+        item.cleanBitmap = await createImageBitmap(blob);
+
+        item.cardUI.overlay.style.display = 'none';
         item.cardUI.canvas.style.display = 'block';
         item.cardUI.dl.style.display = 'inline';
 
-        composeBackground(item);
+        renderCanvas(item);
       } catch (err) {
-        item.cardUI.spinner.textContent = 'Error processing image';
+        console.error(err);
+        item.cardUI.loaderText.textContent = 'Processing Failed';
       }
 
       isProcessing = false;
       processQueue();
     }
 
-    // 5. Compose Foreground & Selected Background
-    function composeBackground(item) {
-      const { img, personMask, cardUI } = item;
+    function renderCanvas(item) {
+      const { cleanBitmap, cardUI } = item;
       const canvas = cardUI.canvas;
       const ctx = canvas.getContext('2d');
 
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = cleanBitmap.width;
+      canvas.height = cleanBitmap.height;
 
-      // Temporary canvas to isolate person via alpha mask
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = img.width;
-      tempCanvas.height = img.height;
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.drawImage(img, 0, 0);
-
-      const frame = tempCtx.getImageData(0, 0, img.width, img.height);
-      const data = frame.data;
-      const mask = personMask.data;
-
-      for (let i = 0; i < mask.length; i++) {
-        // If the neural net says it is NOT person (0), make it transparent
-        if (mask[i] === 0) {
-          data[i * 4 + 3] = 0;
-        }
-      }
-      tempCtx.putImageData(frame, 0, 0);
-
-      // Render Chosen Background onto output canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (currentColor === 'gradient') {
-        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        grad.addColorStop(0, '#f093fb');
-        grad.addColorStop(1, '#f5576c');
+      // Paint Chosen Background
+      if (activeColor === 'gradient') {
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, '#e2e8f0');
+        grad.addColorStop(1, '#94a3b8');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-      } else if (currentColor !== 'transparent') {
-        ctx.fillStyle = currentColor;
+      } else if (activeColor !== 'transparent') {
+        ctx.fillStyle = activeColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // Draw the extracted person on top
-      ctx.drawImage(tempCanvas, 0, 0);
+      // Draw the segmented subject on top
+      ctx.drawImage(cleanBitmap, 0, 0);
 
-      // Setup Download Link
       const url = canvas.toDataURL('image/png');
       cardUI.dl.href = url;
       cardUI.dl.download = `cutout_${item.name.replace(/\.[^/.]+$/, '')}.png`;
-      item.downloadUrl = url;
     }
 
-    // 6. Download All Button
     downloadAllBtn.addEventListener('click', () => {
       processedItems.forEach(item => {
         if (item.cardUI && item.cardUI.dl && item.cardUI.dl.href) {
