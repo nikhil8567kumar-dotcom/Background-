@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bulk Photo Background Studio</title>
+  <title>Bulk AI Background Replacer</title>
   
   <!-- MediaPipe AI Engine -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/selfie_segmentation.js" crossorigin="anonymous"></script>
@@ -19,42 +19,42 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; }
-    .container { max-width: 1100px; margin: 0 auto; }
+    body { background: var(--bg); color: var(--text); padding: 20px; min-height: 100vh; }
+    .container { max-width: 1000px; margin: 0 auto; }
 
-    header { text-align: center; margin-bottom: 24px; }
-    header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
-    #status { font-size: 14px; font-weight: 600; color: #d97706; }
+    header { text-align: center; margin-bottom: 20px; }
+    header h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+    #status { font-size: 13px; font-weight: 600; color: #d97706; }
 
     .upload-box {
       background: var(--surface);
       border: 2px dashed #94a3b8;
-      border-radius: 14px;
-      padding: 35px 20px;
+      border-radius: 12px;
+      padding: 30px 16px;
       text-align: center;
       cursor: pointer;
-      margin-bottom: 24px;
-      transition: all 0.2s;
+      margin-bottom: 20px;
+      transition: background 0.2s;
     }
-    .upload-box:hover { border-color: var(--primary); background: #eff6ff; }
-    .upload-box h3 { font-size: 18px; margin-bottom: 4px; }
+    .upload-box:hover { background: #eff6ff; border-color: var(--primary); }
+    .upload-box h3 { font-size: 16px; margin-bottom: 4px; }
     .upload-box p { font-size: 13px; color: var(--text-muted); }
 
     .toolbar {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px 20px;
-      margin-bottom: 24px;
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin-bottom: 20px;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
+      gap: 14px;
     }
 
     .palette-container { display: flex; align-items: center; gap: 10px; }
-    .palette-label { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+    .palette-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
     .swatches { display: flex; gap: 8px; }
     .swatch {
       width: 32px;
@@ -72,24 +72,23 @@
       background: #0f172a;
       color: white;
       font-weight: 600;
-      padding: 10px 18px;
-      border-radius: 8px;
+      padding: 10px 16px;
+      border-radius: 6px;
       font-size: 13px;
       border: none;
       cursor: pointer;
     }
-    .btn:hover { opacity: 0.9; }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 18px;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
     }
 
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 8px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -103,7 +102,6 @@
       align-items: center;
       justify-content: center;
       background-image: repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 50%/16px 16px;
-      overflow: hidden;
     }
     .preview-box canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
 
@@ -120,15 +118,14 @@
     }
 
     .card-footer {
-      padding: 12px 14px;
+      padding: 10px 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       border-top: 1px solid #f1f5f9;
     }
-    .file-name { font-size: 12px; color: var(--text); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-name { font-size: 12px; color: var(--text); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .dl-btn { font-size: 12px; font-weight: 700; color: var(--primary); text-decoration: none; cursor: pointer; }
-    .dl-btn:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -141,7 +138,7 @@
 
     <div class="upload-box" id="uploadTrigger">
       <h3>Drop your photos here, or click to browse</h3>
-      <p>Clean edge matting enabled (JPG, PNG, WebP)</p>
+      <p>Clean studio edge processing active</p>
       <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
     </div>
 
@@ -187,7 +184,7 @@
         });
 
         selfieSegmentation.setOptions({
-          modelSelection: 1
+          modelSelection: 1 // High precision landscape model
         });
 
         selfieSegmentation.onResults(onResults);
@@ -263,7 +260,7 @@
       isProcessing = true;
 
       currentProcessingItem = queue.shift();
-      currentProcessingItem.cardUI.loader.textContent = 'AI Matting...';
+      currentProcessingItem.cardUI.loader.textContent = 'Removing edges...';
 
       try {
         await selfieSegmentation.send({ image: currentProcessingItem.img });
@@ -274,52 +271,76 @@
       }
     }
 
-    // Precision Alpha Clamping: Removes background halos completely
+    // Edge-Cleaning Pipeline: Removes floating borders and dark fringes
     function onResults(results) {
       if (!currentProcessingItem) return;
 
       const w = results.image.width;
       const h = results.image.height;
 
-      // 1. Extract raw probability mask
-      const maskCanvas = document.createElement('canvas');
-      maskCanvas.width = w;
-      maskCanvas.height = h;
-      const mCtx = maskCanvas.getContext('2d');
-      mCtx.drawImage(results.segmentationMask, 0, 0, w, h);
-      
-      const maskData = mCtx.getImageData(0, 0, w, h);
-      const mPixels = maskData.data;
+      // 1. Render raw mask
+      const rawMaskCanvas = document.createElement('canvas');
+      rawMaskCanvas.width = w;
+      rawMaskCanvas.height = h;
+      const rawCtx = rawMaskCanvas.getContext('2d');
+      rawCtx.drawImage(results.segmentationMask, 0, 0, w, h);
 
-      // 2. High-contrast threshold clamping
-      // Strips out faint halos below 0.45 confidence and sharpens edges
-      for (let i = 0; i < mPixels.length; i += 4) {
-        const val = mPixels[i] / 255;
-        
-        let alpha;
-        if (val < 0.42) {
-          alpha = 0; // Cut off noise/spread entirely
-        } else if (val > 0.75) {
-          alpha = 255; // Solid subject
-        } else {
-          // Linear blend to retain natural hair anti-aliasing
-          alpha = Math.round(((val - 0.42) / (0.75 - 0.42)) * 255);
-        }
+      const imgData = rawCtx.getImageData(0, 0, w, h);
+      const data = imgData.data;
 
-        mPixels[i] = 255;
-        mPixels[i + 1] = 255;
-        mPixels[i + 2] = 255;
-        mPixels[i + 3] = alpha;
+      // 2. Strict Thresholding (Eliminates low-confidence background debris)
+      const binaryMask = new Uint8Array(w * h);
+      for (let i = 0; i < data.length; i += 4) {
+        // Values below 0.65 are forced to 0 (erases faint dark artifacts)
+        binaryMask[i / 4] = (data[i] / 255 > 0.65) ? 255 : 0;
       }
-      mCtx.putImageData(maskData, 0, 0);
 
-      // 3. Composite original photo over cleaned mask
+      // 3. Morphological Erosion: Shrinks mask boundary inward by 1px to peel off edge halos
+      const erodedMask = new Uint8Array(w * h);
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          const idx = y * w + x;
+          if (binaryMask[idx] === 255) {
+            // Check 4-neighbor connectivity
+            if (
+              binaryMask[idx - 1] === 255 &&
+              binaryMask[idx + 1] === 255 &&
+              binaryMask[idx - w] === 255 &&
+              binaryMask[idx + w] === 255
+            ) {
+              erodedMask[idx] = 255;
+            } else {
+              erodedMask[idx] = 0; // Cut boundary pixel
+            }
+          }
+        }
+      }
+
+      // Write cleaned mask back to canvas
+      for (let i = 0; i < erodedMask.length; i++) {
+        const val = erodedMask[i];
+        data[i * 4] = 255;
+        data[i * 4 + 1] = 255;
+        data[i * 4 + 2] = 255;
+        data[i * 4 + 3] = val;
+      }
+      rawCtx.putImageData(imgData, 0, 0);
+
+      // 4. Smooth Feathering: Apply a subtle 1px Gaussian blur to prevent jaggedness
+      const smoothMaskCanvas = document.createElement('canvas');
+      smoothMaskCanvas.width = w;
+      smoothMaskCanvas.height = h;
+      const sCtx = smoothMaskCanvas.getContext('2d');
+      sCtx.filter = 'blur(1.5px)';
+      sCtx.drawImage(rawMaskCanvas, 0, 0);
+
+      // 5. Composite photo with the final smoothed mask
       const cleanCanvas = document.createElement('canvas');
       cleanCanvas.width = w;
       cleanCanvas.height = h;
       const cCtx = cleanCanvas.getContext('2d');
 
-      cCtx.drawImage(maskCanvas, 0, 0);
+      cCtx.drawImage(smoothMaskCanvas, 0, 0);
       cCtx.globalCompositeOperation = 'source-in';
       cCtx.drawImage(results.image, 0, 0);
 
@@ -347,7 +368,7 @@
 
       ctx.clearRect(0, 0, w, h);
 
-      // Draw backdrop
+      // Draw active backdrop
       if (activeColor === 'gradient') {
         const grad = ctx.createLinearGradient(0, 0, 0, h);
         grad.addColorStop(0, '#93c5fd');
@@ -359,13 +380,12 @@
         ctx.fillRect(0, 0, w, h);
       }
 
-      // Draw cutout
+      // Draw cleanly cut out subject
       ctx.drawImage(cleanCanvas, 0, 0);
 
-      // Set download link
       const dataUrl = canvas.toDataURL('image/png');
       cardUI.dl.href = dataUrl;
-      cardUI.dl.download = `clean_${item.name.replace(/\.[^/.]+$/, '')}.png`;
+      cardUI.dl.download = `cutout_${item.name.replace(/\.[^/.]+$/, '')}.png`;
     }
 
     downloadAllBtn.addEventListener('click', () => {
