@@ -2,8 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bulk Photo Background Studio</title>
+  <title>Bulk AI People Background Studio</title>
+  
+  <!-- TensorFlow.js & BodyPix Model -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.0/dist/body-pix.min.js"></script>
+
   <style>
     :root {
       --primary: #2563eb;
@@ -17,7 +21,7 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
 
     body {
@@ -37,26 +41,27 @@
     }
 
     header h1 {
-      font-size: 28px;
+      font-size: 26px;
       color: #0f172a;
       margin-bottom: 6px;
     }
 
-    header p {
-      color: #64748b;
+    #status {
       font-size: 14px;
+      font-weight: bold;
+      color: #d97706;
+      margin-top: 4px;
     }
 
-    /* Controls Panel */
     .controls {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 20px;
+      padding: 18px 24px;
       margin-bottom: 24px;
       display: flex;
       flex-wrap: wrap;
-      gap: 20px;
+      gap: 16px;
       align-items: center;
       justify-content: space-between;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -66,7 +71,6 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      flex-wrap: wrap;
     }
 
     .control-group label {
@@ -74,16 +78,14 @@
       font-size: 14px;
     }
 
-    /* Color Swatches */
     .color-presets {
       display: flex;
       gap: 8px;
-      align-items: center;
     }
 
     .color-btn {
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       border: 2px solid #cbd5e1;
       cursor: pointer;
@@ -100,13 +102,6 @@
       box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
     }
 
-    /* Upload & Action Buttons */
-    .file-input-wrapper {
-      position: relative;
-      overflow: hidden;
-      display: inline-block;
-    }
-
     .btn {
       background-color: var(--primary);
       color: white;
@@ -116,15 +111,17 @@
       font-weight: 600;
       border: none;
       cursor: pointer;
-      transition: opacity 0.2s;
     }
 
-    .btn:hover {
-      opacity: 0.9;
+    .btn:disabled {
+      background-color: #94a3b8;
+      cursor: not-allowed;
     }
 
-    .btn-secondary {
-      background-color: #0f172a;
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
     }
 
     .file-input-wrapper input[type=file] {
@@ -136,18 +133,14 @@
       cursor: pointer;
     }
 
-    /* Tolerance slider */
-    .slider-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
+    .btn-dark {
+      background-color: #0f172a;
     }
 
     /* Gallery Grid */
     .gallery {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
       gap: 16px;
     }
 
@@ -155,28 +148,27 @@
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 10px;
-      overflow: hidden;
+      padding: 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
     .preview-box {
       width: 100%;
-      height: 180px;
+      height: 200px;
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 6px;
-      background-image: linear-gradient(45deg, #eee 25%, transparent 25%),
-                        linear-gradient(-45deg, #eee 25%, transparent 25%),
-                        linear-gradient(45deg, transparent 75%, #eee 75%),
-                        linear-gradient(-45deg, transparent 75%, #eee 75%);
+      background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+                        linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+                        linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
       background-size: 16px 16px;
       background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
       overflow: hidden;
+      position: relative;
     }
 
     .preview-box canvas {
@@ -185,7 +177,7 @@
       object-fit: contain;
     }
 
-    .card-info {
+    .card-footer {
       width: 100%;
       margin-top: 10px;
       display: flex;
@@ -193,21 +185,26 @@
       align-items: center;
     }
 
-    .card-info span {
+    .card-footer span {
       font-size: 12px;
       color: #64748b;
+      max-width: 130px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 120px;
     }
 
-    .download-link {
+    .card-footer a {
       font-size: 12px;
       color: var(--primary);
       text-decoration: none;
       font-weight: 600;
       cursor: pointer;
+    }
+
+    .spinner {
+      font-size: 13px;
+      color: #475569;
     }
   </style>
 </head>
@@ -215,79 +212,108 @@
 
   <div class="container">
     <header>
-      <h1>Bulk Photo Background Remover</h1>
-      <p>Select multiple images, clear uniform backdrops, and apply new backgrounds instantly.</p>
+      <h1>AI Bulk Background Replacer</h1>
+      <p id="status">Loading neural network model, please wait...</p>
     </header>
 
     <div class="controls">
+      <!-- File Selector -->
       <div class="file-input-wrapper">
-        <button class="btn">Choose Photos (Bulk)</button>
-        <input type="file" id="imageInput" accept="image/*" multiple>
+        <button class="btn" id="uploadBtn" disabled>Choose Bulk Photos</button>
+        <input type="file" id="imageInput" accept="image/*" multiple disabled>
       </div>
 
+      <!-- Color Palette -->
       <div class="control-group">
-        <label>Replacement:</label>
+        <label>New Background:</label>
         <div class="color-presets">
-          <button class="color-btn active" data-color="transparent" title="Transparent" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/10px 10px;"></button>
+          <button class="color-btn active" data-color="transparent" title="Transparent" style="background: repeating-conic-gradient(#cbd5e1 0% 25%, #fff 0% 50%) 50%/8px 8px;"></button>
           <button class="color-btn" data-color="#ffffff" title="Solid White" style="background: #ffffff;"></button>
-          <button class="color-btn" data-color="#ef4444" title="Solid Red" style="background: #ef4444;"></button>
-          <button class="color-btn" data-color="#3b82f6" title="Solid Blue" style="background: #3b82f6;"></button>
-          <button class="color-btn" data-color="#10b981" title="Solid Green" style="background: #10b981;"></button>
-          <button class="color-btn" data-color="#f59e0b" title="Warm Amber" style="background: #f59e0b;"></button>
-          <button class="color-btn" data-color="#1e293b" title="Dark Slate" style="background: #1e293b;"></button>
+          <button class="color-btn" data-color="#3b82f6" title="Vibrant Blue" style="background: #3b82f6;"></button>
+          <button class="color-btn" data-color="#ef4444" title="Bright Red" style="background: #ef4444;"></button>
+          <button class="color-btn" data-color="#10b981" title="Fresh Green" style="background: #10b981;"></button>
+          <button class="color-btn" data-color="#0f172a" title="Dark Slate" style="background: #0f172a;"></button>
           <button class="color-btn" data-color="gradient" title="Sunset Gradient" style="background: linear-gradient(135deg, #f093fb, #f5576c);"></button>
         </div>
       </div>
 
-      <div class="slider-container">
-        <label for="tolerance">Sensitivity:</label>
-        <input type="range" id="tolerance" min="5" max="100" value="35">
-      </div>
-
-      <button class="btn btn-secondary" id="downloadAllBtn">Download All</button>
+      <button class="btn btn-dark" id="downloadAllBtn">Download All</button>
     </div>
 
+    <!-- Gallery Output -->
     <div class="gallery" id="gallery"></div>
   </div>
 
   <script>
-    const fileInput = document.getElementById('imageInput');
+    let net = null;
+    let currentColor = 'transparent';
+    let queue = [];
+    let isProcessing = false;
+    const processedItems = [];
+
+    const statusEl = document.getElementById('status');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const imageInput = document.getElementById('imageInput');
     const gallery = document.getElementById('gallery');
     const colorButtons = document.querySelectorAll('.color-btn');
-    const toleranceSlider = document.getElementById('tolerance');
     const downloadAllBtn = document.getElementById('downloadAllBtn');
 
-    let processedItems = [];
-    let currentColor = 'transparent';
+    // 1. Initialize BodyPix Model
+    async function loadModel() {
+      try {
+        net = await bodyPix.load({
+          architecture: 'MobileNetV1',
+          outputStride: 16,
+          multiplier: 0.75,
+          quantBytes: 2
+        });
+        statusEl.textContent = 'AI Ready. Select multiple photos to begin.';
+        statusEl.style.color = '#16a34a';
+        uploadBtn.disabled = false;
+        imageInput.disabled = false;
+      } catch (err) {
+        statusEl.textContent = 'Failed to load model. Please ensure you are connected to the internet.';
+        statusEl.style.color = '#dc2626';
+      }
+    }
+    loadModel();
 
+    // 2. Handle Color Selection
     colorButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         colorButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentColor = btn.dataset.color;
-        reprocessAll();
+        
+        // Re-paint all processed masks with the new background
+        processedItems.forEach(item => {
+          if (item.personMask) {
+            composeBackground(item);
+          }
+        });
       });
     });
 
-    toleranceSlider.addEventListener('input', () => {
-      reprocessAll();
-    });
-
-    fileInput.addEventListener('change', (e) => {
+    // 3. Handle File Uploads
+    imageInput.addEventListener('change', (e) => {
       const files = Array.from(e.target.files);
       if (!files.length) return;
-
-      gallery.innerHTML = '';
-      processedItems = [];
 
       files.forEach(file => {
         const reader = new FileReader();
         reader.onload = (event) => {
           const img = new Image();
           img.onload = () => {
-            const item = { name: file.name, originalImg: img };
+            const cardUI = createCardUI(file.name);
+            const item = {
+              name: file.name,
+              img: img,
+              cardUI: cardUI,
+              personMask: null
+            };
             processedItems.push(item);
-            renderCard(item);
+            queue.push(item);
+            processQueue();
           };
           img.src = event.target.result;
         };
@@ -295,75 +321,101 @@
       });
     });
 
-    function renderCard(item) {
+    function createCardUI(name) {
       const card = document.createElement('div');
       card.className = 'card';
 
       const previewBox = document.createElement('div');
       previewBox.className = 'preview-box';
+      
+      const spinner = document.createElement('span');
+      spinner.className = 'spinner';
+      spinner.textContent = 'Waiting...';
+      previewBox.appendChild(spinner);
 
       const canvas = document.createElement('canvas');
+      canvas.style.display = 'none';
       previewBox.appendChild(canvas);
 
-      const info = document.createElement('div');
-      info.className = 'card-info';
+      const footer = document.createElement('div');
+      footer.className = 'card-footer';
 
       const title = document.createElement('span');
-      title.textContent = item.name;
+      title.textContent = name;
 
       const dl = document.createElement('a');
-      dl.className = 'download-link';
-      dl.textContent = 'Save PNG';
+      dl.textContent = 'Download';
+      dl.style.display = 'none';
 
-      info.appendChild(title);
-      info.appendChild(dl);
+      footer.appendChild(title);
+      footer.appendChild(dl);
 
       card.appendChild(previewBox);
-      card.appendChild(info);
+      card.appendChild(footer);
       gallery.appendChild(card);
 
-      item.canvas = canvas;
-      item.downloadLink = dl;
-
-      processImage(item);
+      return { canvas, dl, spinner };
     }
 
-    function reprocessAll() {
-      processedItems.forEach(item => processImage(item));
+    // 4. Sequential Queue to prevent browser freezing
+    async function processQueue() {
+      if (isProcessing || queue.length === 0) return;
+      isProcessing = true;
+
+      const item = queue.shift();
+      item.cardUI.spinner.textContent = 'Analyzing Person...';
+
+      try {
+        // Run AI Segmentation
+        const segmentation = await net.segmentPerson(item.img, {
+          flipHorizontal: false,
+          internalResolution: 'medium',
+          segmentationThreshold: 0.7
+        });
+
+        item.personMask = segmentation;
+        item.cardUI.spinner.style.display = 'none';
+        item.cardUI.canvas.style.display = 'block';
+        item.cardUI.dl.style.display = 'inline';
+
+        composeBackground(item);
+      } catch (err) {
+        item.cardUI.spinner.textContent = 'Error processing image';
+      }
+
+      isProcessing = false;
+      processQueue();
     }
 
-    function processImage(item) {
-      const img = item.originalImg;
-      const canvas = item.canvas;
+    // 5. Compose Foreground & Selected Background
+    function composeBackground(item) {
+      const { img, personMask, cardUI } = item;
+      const canvas = cardUI.canvas;
       const ctx = canvas.getContext('2d');
 
       canvas.width = img.width;
       canvas.height = img.height;
 
-      // Draw the source image to extract pixel buffer
-      ctx.drawImage(img, 0, 0);
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imgData.data;
+      // Temporary canvas to isolate person via alpha mask
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = img.width;
+      tempCanvas.height = img.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(img, 0, 0);
 
-      // Sample backdrop reference color from the top-left corner
-      const baseR = data[0];
-      const baseG = data[1];
-      const baseB = data[2];
-      const tol = parseInt(toleranceSlider.value, 10);
+      const frame = tempCtx.getImageData(0, 0, img.width, img.height);
+      const data = frame.data;
+      const mask = personMask.data;
 
-      // Simple Euclidean distance color check
-      for (let i = 0; i < data.length; i += 4) {
-        const rDiff = data[i] - baseR;
-        const gDiff = data[i+1] - baseG;
-        const bDiff = data[i+2] - baseB;
-        const distance = Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff);
-
-        if (distance < tol) {
-          data[i+3] = 0; // Set Alpha to 0
+      for (let i = 0; i < mask.length; i++) {
+        // If the neural net says it is NOT person (0), make it transparent
+        if (mask[i] === 0) {
+          data[i * 4 + 3] = 0;
         }
       }
+      tempCtx.putImageData(frame, 0, 0);
 
-      // Draw background replacement
+      // Render Chosen Background onto output canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (currentColor === 'gradient') {
@@ -377,24 +429,21 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // Layer processed foreground over selected background
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
-      tempCanvas.getContext('2d').putImageData(imgData, 0, 0);
-
+      // Draw the extracted person on top
       ctx.drawImage(tempCanvas, 0, 0);
 
-      // Set individual download link
+      // Setup Download Link
       const url = canvas.toDataURL('image/png');
-      item.downloadLink.href = url;
-      item.downloadLink.download = `cleared_${item.name.replace(/\.[^/.]+$/, "")}.png`;
+      cardUI.dl.href = url;
+      cardUI.dl.download = `cutout_${item.name.replace(/\.[^/.]+$/, '')}.png`;
+      item.downloadUrl = url;
     }
 
+    // 6. Download All Button
     downloadAllBtn.addEventListener('click', () => {
       processedItems.forEach(item => {
-        if (item.downloadLink) {
-          item.downloadLink.click();
+        if (item.cardUI && item.cardUI.dl && item.cardUI.dl.href) {
+          item.cardUI.dl.click();
         }
       });
     });
