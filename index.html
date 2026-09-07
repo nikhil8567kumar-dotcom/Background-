@@ -5,13 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bulk Photo Background Studio</title>
   
-  <!-- MediaPipe AI Engine (Compatible with Windows 7 Chrome & Mobile) -->
+  <!-- MediaPipe AI Engine -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/selfie_segmentation.js" crossorigin="anonymous"></script>
 
   <style>
     :root {
       --primary: #2563eb;
-      --primary-hover: #1d4ed8;
       --bg: #f8fafc;
       --surface: #ffffff;
       --border: #cbd5e1;
@@ -27,7 +26,6 @@
     header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
     #status { font-size: 14px; font-weight: 600; color: #d97706; }
 
-    /* Upload Zone */
     .upload-box {
       background: var(--surface);
       border: 2px dashed #94a3b8;
@@ -42,7 +40,6 @@
     .upload-box h3 { font-size: 18px; margin-bottom: 4px; }
     .upload-box p { font-size: 13px; color: var(--text-muted); }
 
-    /* Toolbar */
     .toolbar {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -83,7 +80,6 @@
     }
     .btn:hover { opacity: 0.9; }
 
-    /* Cards Grid */
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -143,14 +139,12 @@
       <p id="status">Loading AI Engine...</p>
     </header>
 
-    <!-- Upload area -->
     <div class="upload-box" id="uploadTrigger">
       <h3>Drop your photos here, or click to browse</h3>
-      <p>Supports passport photos, selfies, and group shots in bulk (JPG, PNG, WebP)</p>
+      <p>Clean edge matting enabled (JPG, PNG, WebP)</p>
       <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
     </div>
 
-    <!-- Controls -->
     <div class="toolbar">
       <div class="palette-container">
         <span class="palette-label">Backdrop:</span>
@@ -167,7 +161,6 @@
       <button class="btn" id="downloadAllBtn">Download All</button>
     </div>
 
-    <!-- Gallery Grid -->
     <div class="grid" id="gallery"></div>
   </div>
 
@@ -187,7 +180,6 @@
 
     uploadTrigger.addEventListener('click', () => fileInput.click());
 
-    // 1. Initialize Google MediaPipe Model
     function initAI() {
       try {
         selfieSegmentation = new SelfieSegmentation({
@@ -195,7 +187,7 @@
         });
 
         selfieSegmentation.setOptions({
-          modelSelection: 1 // 1 = General High-Accuracy model
+          modelSelection: 1
         });
 
         selfieSegmentation.onResults(onResults);
@@ -209,7 +201,6 @@
     }
     window.addEventListener('load', initAI);
 
-    // 2. Palette Swatches
     swatches.forEach(swatch => {
       swatch.addEventListener('click', () => {
         swatches.forEach(s => s.classList.remove('active'));
@@ -217,12 +208,11 @@
         activeColor = swatch.dataset.color;
 
         processedItems.forEach(item => {
-          if (item.results) renderCanvas(item);
+          if (item.cleanCanvas) renderCanvas(item);
         });
       });
     });
 
-    // 3. Upload Handling
     fileInput.addEventListener('change', (e) => {
       const files = Array.from(e.target.files);
       if (!files.length) return;
@@ -233,7 +223,7 @@
           const img = new Image();
           img.onload = () => {
             const cardUI = createCardUI(file.name);
-            const item = { name: file.name, img, cardUI, results: null };
+            const item = { name: file.name, img, cardUI, cleanCanvas: null };
             processedItems.push(item);
             queue.push(item);
             processQueue();
@@ -284,11 +274,56 @@
       }
     }
 
-    // 4. Smooth Compositing (Solves the jagged border issue)
+    // Precision Alpha Clamping: Removes background halos completely
     function onResults(results) {
       if (!currentProcessingItem) return;
 
-      currentProcessingItem.results = results;
+      const w = results.image.width;
+      const h = results.image.height;
+
+      // 1. Extract raw probability mask
+      const maskCanvas = document.createElement('canvas');
+      maskCanvas.width = w;
+      maskCanvas.height = h;
+      const mCtx = maskCanvas.getContext('2d');
+      mCtx.drawImage(results.segmentationMask, 0, 0, w, h);
+      
+      const maskData = mCtx.getImageData(0, 0, w, h);
+      const mPixels = maskData.data;
+
+      // 2. High-contrast threshold clamping
+      // Strips out faint halos below 0.45 confidence and sharpens edges
+      for (let i = 0; i < mPixels.length; i += 4) {
+        const val = mPixels[i] / 255;
+        
+        let alpha;
+        if (val < 0.42) {
+          alpha = 0; // Cut off noise/spread entirely
+        } else if (val > 0.75) {
+          alpha = 255; // Solid subject
+        } else {
+          // Linear blend to retain natural hair anti-aliasing
+          alpha = Math.round(((val - 0.42) / (0.75 - 0.42)) * 255);
+        }
+
+        mPixels[i] = 255;
+        mPixels[i + 1] = 255;
+        mPixels[i + 2] = 255;
+        mPixels[i + 3] = alpha;
+      }
+      mCtx.putImageData(maskData, 0, 0);
+
+      // 3. Composite original photo over cleaned mask
+      const cleanCanvas = document.createElement('canvas');
+      cleanCanvas.width = w;
+      cleanCanvas.height = h;
+      const cCtx = cleanCanvas.getContext('2d');
+
+      cCtx.drawImage(maskCanvas, 0, 0);
+      cCtx.globalCompositeOperation = 'source-in';
+      cCtx.drawImage(results.image, 0, 0);
+
+      currentProcessingItem.cleanCanvas = cleanCanvas;
       currentProcessingItem.cardUI.loader.style.display = 'none';
       currentProcessingItem.cardUI.canvas.style.display = 'block';
       currentProcessingItem.cardUI.dl.style.display = 'inline';
@@ -301,19 +336,18 @@
     }
 
     function renderCanvas(item) {
-      const { results, cardUI } = item;
+      const { cleanCanvas, cardUI } = item;
       const canvas = cardUI.canvas;
       const ctx = canvas.getContext('2d');
-      const w = results.image.width;
-      const h = results.image.height;
+      const w = cleanCanvas.width;
+      const h = cleanCanvas.height;
 
       canvas.width = w;
       canvas.height = h;
 
-      ctx.save();
       ctx.clearRect(0, 0, w, h);
 
-      // Step A: Draw New Background Color / Gradient
+      // Draw backdrop
       if (activeColor === 'gradient') {
         const grad = ctx.createLinearGradient(0, 0, 0, h);
         grad.addColorStop(0, '#93c5fd');
@@ -325,30 +359,15 @@
         ctx.fillRect(0, 0, w, h);
       }
 
-      // Step B: Create feathered mask on an offscreen buffer
-      const maskCanvas = document.createElement('canvas');
-      maskCanvas.width = w;
-      maskCanvas.height = h;
-      const mCtx = maskCanvas.getContext('2d');
+      // Draw cutout
+      ctx.drawImage(cleanCanvas, 0, 0);
 
-      // 1. Draw smooth probability mask
-      mCtx.drawImage(results.segmentationMask, 0, 0, w, h);
-
-      // 2. Keep only the person inside the alpha boundaries
-      mCtx.globalCompositeOperation = 'source-in';
-      mCtx.drawImage(results.image, 0, 0, w, h);
-
-      // Step C: Draw the smoothly matted person over the background
-      ctx.drawImage(maskCanvas, 0, 0);
-      ctx.restore();
-
-      // Update link
+      // Set download link
       const dataUrl = canvas.toDataURL('image/png');
       cardUI.dl.href = dataUrl;
-      cardUI.dl.download = `cutout_${item.name.replace(/\.[^/.]+$/, '')}.png`;
+      cardUI.dl.download = `clean_${item.name.replace(/\.[^/.]+$/, '')}.png`;
     }
 
-    // 5. Download All
     downloadAllBtn.addEventListener('click', () => {
       processedItems.forEach(item => {
         if (item.cardUI && item.cardUI.dl && item.cardUI.dl.href) {
